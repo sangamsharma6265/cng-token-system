@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jai Shree Ram CNG Cylinder Testing Company</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Main Container Card -->
+    <div class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-orange-200">
+        
+        <!-- Header Banner -->
+        <div class="bg-gradient-to-r from-orange-600 to-amber-600 p-6 text-center text-white">
+            <div class="w-16 h-16 bg-white/10 mx-auto rounded-full flex items-center justify-center mb-3 backdrop-blur-sm">
+                <i class="fa-solid fa-gas-pump text-3xl"></i>
+            </div>
+            <h1 class="text-xl font-bold tracking-wide">Jai Shree Ram CNG</h1>
+            <p class="text-xs text-orange-100 uppercase tracking-wider mt-1">Cylinder Hydro Testing Company</p>
+        </div>
+
+        <!-- Form Body -->
+        <div class="p-6 space-y-4">
+            <form id="tokenForm" class="space-y-4" onsubmit="event.preventDefault();">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Customer Name</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fa-solid fa-user"></i></span>
+                        <input type="text" id="customerName" placeholder="Enter full name" required class="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Vehicle Number</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fa-solid fa-car"></i></span>
+                        <input type="text" id="vehicleNumber" placeholder="e.g. DL01AB1234" required class="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm uppercase focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Mobile Number</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fa-solid fa-phone"></i></span>
+                        <input type="tel" id="mobileNumber" pattern="[0-9]{10}" placeholder="10-digit mobile number" required class="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Booking Date</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fa-solid fa-calendar"></i></span>
+                        <input type="date" id="bookingDate" required class="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition">
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <button type="button" onclick="submitToken('Pay Now')" class="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-qrcode"></i> Pay Now
+                    </button>
+                    <button type="button" onclick="submitToken('Pay Later')" class="bg-amber-600 hover:bg-amber-700 text-white py-3 px-4 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-clock"></i> Pay Later
+                    </button>
+                </div>
+            </form>
+
+            <!-- Success Result Box (Hidden initially) -->
+            <div id="resultBox" class="hidden mt-4 p-5 bg-orange-50 border-2 border-dashed border-orange-400 rounded-xl text-center space-y-3">
+                <div class="text-emerald-600 font-bold text-sm flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-circle-check text-lg"></i> Token Generated Successfully!
+                </div>
+                <div class="bg-white py-3 px-4 rounded-lg shadow-inner inline-block border border-orange-200">
+                    <span class="text-xs text-gray-500 block uppercase font-semibold">Your Token Number</span>
+                    <span class="text-4xl font-black text-orange-600 tracking-wider" id="displayTokenNumber">#00</span>
+                </div>
+                <div class="text-xs text-gray-600 space-y-1" id="displayDetails">
+                    <!-- Dynamic details here -->
+                </div>
+                <button onclick="resetForm()" class="mt-2 text-xs text-orange-600 font-bold underline hover:text-orange-800">Book Another Token</button>
+            </div>
+        </div>
+        
+        <div class="bg-gray-50 px-6 py-3 border-t border-gray-100 text-center text-xs text-gray-400">
+            © 2026 Jai Shree Ram CNG Testing. All Rights Reserved.
+        </div>
+    </div>
+
+    <script>
+        // Set default date to today
+        document.getElementById('bookingDate').value = new Date().toISOString().split('T')[0];
+
+        async function submitToken(paymentType) {
+            const customerName = document.getElementById('customerName').value.trim();
+            const vehicleNumber = document.getElementById('vehicleNumber').value.trim();
+            const mobileNumber = document.getElementById('mobileNumber').value.trim();
+            const bookingDate = document.getElementById('bookingDate').value;
+
+            if (!customerName || !vehicleNumber || !mobileNumber || !bookingDate) {
+                alert('Please fill in all required fields!');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/tokens/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ customerName, vehicleNumber, mobileNumber, bookingDate, paymentType })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Hide form and display success box
+                    document.getElementById('tokenForm').classList.add('hidden');
+                    document.getElementById('displayTokenNumber').innerText = `#${result.data.tokenNumber}`;
+                    document.getElementById('displayDetails').innerHTML = `
+                        <p><b>Name:</b> ${result.data.customerName}</p>
+                        <p><b>Vehicle:</b> ${result.data.vehicleNumber}</p>
+                        <p><b>Date:</b> ${result.data.bookingDate}</p>
+                        <p><b>Payment Mode:</b> <span class="text-orange-600 font-bold">${result.data.paymentType}</span></p>
+                    `;
+                    document.getElementById('resultBox').classList.remove('hidden');
+
+                    if (paymentType === 'Pay Now') {
+                        // UPI payment intent link (Yahan apni company ki UPI ID daal lena aage chalkar)
+                        const upiID = "merchant@upi"; 
+                        const amount = "500"; // Testing charges test amount
+                        const upiLink = `upi://pay?pa=${upiID}&pn=Jai%20Shree%20Ram%20CNG&am=${amount}&cu=INR`;
+                        
+                        // Try triggering UPI app on mobile
+                        setTimeout(() => {
+                            window.location.href = upiLink;
+                        }, 1000);
+                    }
+                } else {
+                    alert(result.message || 'Failed to generate token.');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Server connection error. Make sure server is running.');
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('tokenForm').reset();
+            document.getElementById('bookingDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('resultBox').classList.add('hidden');
+            document.getElementById('tokenForm').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
