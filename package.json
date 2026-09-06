@@ -1,14 +1,12 @@
 {
   "name": "cng-token-system",
   "version": "1.0.0",
-  "description": "CNG Cylinder Testing Token Management System",
+  "description": "CNG Token Management System",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "start": "node server.js"
   },
   "dependencies": {
-    "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "mongoose": "^8.3.1"
   }
