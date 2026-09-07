@@ -59,29 +59,44 @@
 
                 <!-- Action Buttons -->
                 <div class="grid grid-cols-2 gap-3 pt-2">
-                    <!-- Pay Now as direct UPI Anchor Link -->
-                    <a href="#" id="payNowBtn" onclick="handlePayNow(event)" class="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2 text-center">
+                    <button type="button" onclick="submitToken('Pay Now')" class="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
                         <i class="fa-solid fa-qrcode"></i> Pay Now
-                    </a>
-                    <button type="button" onclick="submitPayLater()" class="bg-amber-600 hover:bg-amber-700 text-white py-3 px-4 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
+                    </button>
+                    <button type="button" onclick="submitToken('Pay Later')" class="bg-amber-600 hover:bg-amber-700 text-white py-3 px-4 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
                         <i class="fa-solid fa-clock"></i> Pay Later
                     </button>
                 </div>
             </form>
 
-            <!-- Success Result Box (Hidden initially) -->
+            <!-- Success Result & Payment Box (Hidden initially) -->
             <div id="resultBox" class="hidden mt-4 p-5 bg-orange-50 border-2 border-dashed border-orange-400 rounded-xl text-center space-y-3">
                 <div class="text-emerald-600 font-bold text-sm flex items-center justify-center gap-1">
                     <i class="fa-solid fa-circle-check text-lg"></i> Token Generated Successfully!
                 </div>
-                <div class="bg-white py-3 px-4 rounded-lg shadow-inner inline-block border border-orange-200">
+                
+                <div class="bg-white py-2 px-4 rounded-lg shadow-inner inline-block border border-orange-200">
                     <span class="text-xs text-gray-500 block uppercase font-semibold">Your Token Number</span>
-                    <span class="text-4xl font-black text-orange-600 tracking-wider" id="displayTokenNumber">#00</span>
+                    <span class="text-3xl font-black text-orange-600 tracking-wider" id="displayTokenNumber">#00</span>
                 </div>
-                <div class="text-xs text-gray-600 space-y-1" id="displayDetails">
+
+                <div class="text-xs text-gray-600 space-y-1 text-left bg-white p-3 rounded-lg border border-orange-100" id="displayDetails">
                     <!-- Dynamic details here -->
                 </div>
-                <button onclick="resetForm()" class="mt-2 text-xs text-orange-600 font-bold underline hover:text-orange-800">Book Another Token</button>
+
+                <!-- QR Code & Payment Section (Only for Pay Now) -->
+                <div id="paymentSection" class="hidden space-y-2 pt-2 border-t border-orange-200">
+                    <p class="text-xs font-bold text-gray-700">Scan QR Code to Pay ₹500</p>
+                    <div class="bg-white p-2 inline-block rounded-xl shadow border border-orange-200">
+                        <img id="qrCodeImg" src="" alt="UPI QR Code" class="w-36 h-36 mx-auto rounded">
+                    </div>
+                    <div>
+                        <a id="upiDirectBtn" href="#" class="inline-block w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg font-bold text-xs shadow transition">
+                            <i class="fa-solid fa-wallet mr-1"></i> Open PhonePe / GPay App
+                        </a>
+                    </div>
+                </div>
+
+                <button onclick="resetForm()" class="mt-2 text-xs text-orange-600 font-bold underline hover:text-orange-800 block mx-auto">Book Another Token</button>
             </div>
         </div>
         
@@ -94,43 +109,7 @@
         // Set default date to today
         document.getElementById('bookingDate').value = new Date().toISOString().split('T')[0];
 
-        // Update UPI link dynamically on input change
-        function getUpiLink() {
-            const upiID = "9643280877@ptsbi"; 
-            const amount = "500"; 
-            return `upi://pay?pa=${upiID}&pn=Jai%20Shree%20Ram%20CNG&am=${amount}&cu=INR`;
-        }
-
-        document.getElementById('payNowBtn').setAttribute('href', getUpiLink());
-
-        function handlePayNow(e) {
-            const customerName = document.getElementById('customerName').value.trim();
-            const vehicleNumber = document.getElementById('vehicleNumber').value.trim();
-            const mobileNumber = document.getElementById('mobileNumber').value.trim();
-            const bookingDate = document.getElementById('bookingDate').value;
-
-            if (!customerName || !vehicleNumber || !mobileNumber || !bookingDate) {
-                e.preventDefault();
-                alert('Please fill in all required fields!');
-                return;
-            }
-
-            // Save token to backend in background using sendBeacon so it doesn't block UPI app opening
-            const data = JSON.stringify({
-                customerName,
-                vehicleNumber,
-                mobileNumber,
-                bookingDate,
-                paymentType: 'Pay Now'
-            });
-            
-            const blob = new Blob([data], { type: 'application/json' });
-            navigator.sendBeacon('/api/tokens/generate', blob);
-
-            // The browser will naturally follow the href="upi://..." and open the UPI app instantly!
-        }
-
-        async function submitPayLater() {
+        async function submitToken(paymentType) {
             const customerName = document.getElementById('customerName').value.trim();
             const vehicleNumber = document.getElementById('vehicleNumber').value.trim();
             const mobileNumber = document.getElementById('mobileNumber').value.trim();
@@ -145,7 +124,7 @@
                 const response = await fetch('/api/tokens/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ customerName, vehicleNumber, mobileNumber, bookingDate, paymentType: 'Pay Later' })
+                    body: JSON.stringify({ customerName, vehicleNumber, mobileNumber, bookingDate, paymentType })
                 });
 
                 const result = await response.json();
@@ -159,6 +138,23 @@
                         <p><b>Date:</b> ${result.data.bookingDate}</p>
                         <p><b>Payment Mode:</b> <span class="text-orange-600 font-bold">${result.data.paymentType}</span></p>
                     `;
+
+                    const paymentSection = document.getElementById('paymentSection');
+                    if (paymentType === 'Pay Now') {
+                        const upiID = "9643280877@ptsbi"; 
+                        const amount = "500"; 
+                        const upiLink = `upi://pay?pa=${upiID}&pn=Jai%20Shree%20Ram%20CNG&am=${amount}&cu=INR`;
+                        
+                        // Generate dynamic QR code image based on UPI link
+                        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiLink)}`;
+                        document.getElementById('qrCodeImg').src = qrApiUrl;
+                        document.getElementById('upiDirectBtn').setAttribute('href', upiLink);
+                        
+                        paymentSection.classList.remove('hidden');
+                    } else {
+                        paymentSection.classList.add('hidden');
+                    }
+
                     document.getElementById('resultBox').classList.remove('hidden');
                 } else {
                     alert(result.message || 'Failed to generate token.');
