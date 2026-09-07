@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 const Token = require('./models/Token');
@@ -11,7 +12,7 @@ const app = express();
 // Middlewares
 app.use(express.json());
 app.use(cors());
-app.use(express.static('public')); // Serves the frontend index.html
+app.use(express.static(path.join(__dirname, 'public'))); // Serves static files from public folder
 
 // Environment Variables
 const PORT = process.env.PORT || 5000;
@@ -21,6 +22,11 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/cng-token-
 mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ MongoDB Connected Successfully'))
     .catch((err) => console.error('❌ Database Connection Error:', err));
+
+// Route to serve Admin Panel
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
 
 // 1. Generate Token API Route
 app.post('/api/tokens/generate', async (req, res) => {
