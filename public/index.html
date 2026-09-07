@@ -59,10 +59,11 @@
 
                 <!-- Action Buttons -->
                 <div class="grid grid-cols-2 gap-3 pt-2">
-                    <button type="button" onclick="submitToken('Pay Now')" class="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
+                    <!-- Pay Now as direct UPI Anchor Link -->
+                    <a href="#" id="payNowBtn" onclick="handlePayNow(event)" class="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2 text-center">
                         <i class="fa-solid fa-qrcode"></i> Pay Now
-                    </button>
-                    <button type="button" onclick="submitToken('Pay Later')" class="bg-amber-600 hover:bg-amber-700 text-white py-3 px-4 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
+                    </a>
+                    <button type="button" onclick="submitPayLater()" class="bg-amber-600 hover:bg-amber-700 text-white py-3 px-4 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
                         <i class="fa-solid fa-clock"></i> Pay Later
                     </button>
                 </div>
@@ -93,7 +94,43 @@
         // Set default date to today
         document.getElementById('bookingDate').value = new Date().toISOString().split('T')[0];
 
-        async function submitToken(paymentType) {
+        // Update UPI link dynamically on input change
+        function getUpiLink() {
+            const upiID = "9643280877@ptsbi"; 
+            const amount = "500"; 
+            return `upi://pay?pa=${upiID}&pn=Jai%20Shree%20Ram%20CNG&am=${amount}&cu=INR`;
+        }
+
+        document.getElementById('payNowBtn').setAttribute('href', getUpiLink());
+
+        function handlePayNow(e) {
+            const customerName = document.getElementById('customerName').value.trim();
+            const vehicleNumber = document.getElementById('vehicleNumber').value.trim();
+            const mobileNumber = document.getElementById('mobileNumber').value.trim();
+            const bookingDate = document.getElementById('bookingDate').value;
+
+            if (!customerName || !vehicleNumber || !mobileNumber || !bookingDate) {
+                e.preventDefault();
+                alert('Please fill in all required fields!');
+                return;
+            }
+
+            // Save token to backend in background using sendBeacon so it doesn't block UPI app opening
+            const data = JSON.stringify({
+                customerName,
+                vehicleNumber,
+                mobileNumber,
+                bookingDate,
+                paymentType: 'Pay Now'
+            });
+            
+            const blob = new Blob([data], { type: 'application/json' });
+            navigator.sendBeacon('/api/tokens/generate', blob);
+
+            // The browser will naturally follow the href="upi://..." and open the UPI app instantly!
+        }
+
+        async function submitPayLater() {
             const customerName = document.getElementById('customerName').value.trim();
             const vehicleNumber = document.getElementById('vehicleNumber').value.trim();
             const mobileNumber = document.getElementById('mobileNumber').value.trim();
@@ -104,31 +141,11 @@
                 return;
             }
 
-            // Agar user ne 'Pay Now' select kiya hai
-            if (paymentType === 'Pay Now') {
-                const upiID = "9643280877@ptsbi"; 
-                const amount = "500"; 
-                const upiLink = `upi://pay?pa=${upiID}&pn=Jai%20Shree%20Ram%20CNG&am=${amount}&cu=INR`;
-
-                // Background mein token save karo (keepalive ki wajah se page redirect hone par bhi request cancel nahi hogi)
-                fetch('/api/tokens/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ customerName, vehicleNumber, mobileNumber, bookingDate, paymentType }),
-                    keepalive: true
-                }).catch(err => console.error('Error saving token:', err));
-
-                // Turant UPI app khol do
-                window.location.href = upiLink;
-                return;
-            }
-
-            // 'Pay Later' ke liye normal flow
             try {
                 const response = await fetch('/api/tokens/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ customerName, vehicleNumber, mobileNumber, bookingDate, paymentType })
+                    body: JSON.stringify({ customerName, vehicleNumber, mobileNumber, bookingDate, paymentType: 'Pay Later' })
                 });
 
                 const result = await response.json();
