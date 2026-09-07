@@ -23,9 +23,9 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ MongoDB Connected Successfully'))
     .catch((err) => console.error('❌ Database Connection Error:', err));
 
-// Temporary Test Route for Admin to Debug
+// Route to serve Admin Panel
 app.get('/admin', (req, res) => {
-    res.send('✅ Admin route is working, checking file path next!');
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
 // 1. Generate Token API Route
