@@ -12,7 +12,7 @@ const app = express();
 // Middlewares
 app.use(express.json());
 app.use(cors());
-app.use(express.static(path.join(__dirname, 'public'))); // Serves static files from public folder
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Environment Variables
 const PORT = process.env.PORT || 5000;
@@ -28,37 +28,38 @@ app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// 1. Generate Token API Route
+// 1. Generate Token API Route (Supports custom starting token number)
 app.post('/api/tokens/generate', async (req, res) => {
     try {
         const { customerName, vehicleNumber, mobileNumber, bookingDate, paymentType } = req.body;
 
-        // Validation check
         if (!customerName || !vehicleNumber || !mobileNumber || !bookingDate || !paymentType) {
             return res.status(400).json({ success: false, message: 'All fields are required!' });
         }
 
-        // Check if booking is closed for this specific date by Admin
         let config = await AdminConfig.findOne({ date: bookingDate });
         if (config && config.isBookingClosed) {
             return res.status(400).json({ success: false, message: 'Bookings for this date are closed by admin!' });
         }
 
-        const maxLimit = config ? config.maxLimit : 100; // Default limit 100 tokens per day
-
-        // Count existing tokens for the given date to find the next token number
+        const maxLimit = config && config.maxLimit ? config.maxLimit : 100;
         const tokenCount = await Token.countDocuments({ bookingDate });
 
         if (tokenCount >= maxLimit) {
             return res.status(400).json({ success: false, message: 'Daily token limit reached for this date!' });
         }
 
-        const nextTokenNumber = tokenCount + 1;
+        // Calculate next token number respecting custom start number if configured
+        let startNum = (config && config.startNumber) ? config.startNumber : 1;
+        const lastToken = await Token.findOne({ bookingDate }).sort({ tokenNumber: -1 });
+        
+        let nextTokenNumber = startNum;
+        if (lastToken && lastToken.tokenNumber >= startNum) {
+            nextTokenNumber = lastToken.tokenNumber + 1;
+        }
 
-        // Set initial payment status based on user choice
         const paymentStatus = (paymentType === 'Pay Now') ? 'Completed' : 'Skipped/Manual';
 
-        // Create and save new token
         const newToken = new Token({
             tokenNumber: nextTokenNumber,
             bookingDate,
@@ -90,7 +91,7 @@ app.post('/api/tokens/generate', async (req, res) => {
     }
 });
 
-// 2. Get all tokens for Admin Panel (with optional date filter)
+// 2. Get all tokens for Admin Panel
 app.get('/api/tokens', async (req, res) => {
     try {
         const { date } = req.query;
@@ -100,13 +101,58 @@ app.get('/api/tokens', async (req, res) => {
             query.bookingDate = date;
         }
 
-        const tokens = await Token.find(query).sort({ createdAt: -1 }); // Latest tokens first
+        const tokens = await Token.find(query).sort({ createdAt: -1 });
         res.status(200).json({
             success: true,
+            tokens: tokens, // Added for frontend compatibility
             data: tokens
         });
     } catch (error) {
         console.error('Error fetching tokens:', error);
+        res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+    }
+});
+
+// 3. Delete Token API (Admin Power)
+app.delete('/api/tokens/:id', async (req, res) => {
+    try {
+        const deletedToken = await Token.findByIdAndDelete(req.params.id);
+        if (!deletedToken) {
+            return res.status(404).json({ success: false, message: 'Token not found' });
+        }
+        res.status(200).json({ success: true, message: 'Token deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting token:', error);
+        res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+    }
+});
+
+// 4. Set Starting Token Number API (Admin Power)
+app.post('/api/tokens/start-number', async (req, res) => {
+    try {
+        const { startNumber } = req.body;
+        if (!startNumber || isNaN(startNumber)) {
+            return res.status(400).json({ success: false, message: 'Valid start number is required' });
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+
+        // Update or create config for today with the new start number
+        let config = await AdminConfig.findOne({ date: today });
+        if (config) {
+            config.startNumber = parseInt(startNumber);
+            await config.save();
+        } else {
+            config = new AdminConfig({
+                date: today,
+                startNumber: parseInt(startNumber)
+            });
+            await config.save();
+        }
+
+        res.status(200).json({ success: true, message: 'Starting token number updated successfully' });
+    } catch (error) {
+        console.error('Error updating start number:', error);
         res.status(500).json({ success: false, message: 'Server error: ' + error.message });
     }
 });
