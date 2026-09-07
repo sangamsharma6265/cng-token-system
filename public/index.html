@@ -104,6 +104,26 @@
                 return;
             }
 
+            // Agar user ne 'Pay Now' select kiya hai
+            if (paymentType === 'Pay Now') {
+                const upiID = "9643280877@ptsbi"; 
+                const amount = "500"; 
+                const upiLink = `upi://pay?pa=${upiID}&pn=Jai%20Shree%20Ram%20CNG&am=${amount}&cu=INR`;
+
+                // Background mein token save karo (keepalive ki wajah se page redirect hone par bhi request cancel nahi hogi)
+                fetch('/api/tokens/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ customerName, vehicleNumber, mobileNumber, bookingDate, paymentType }),
+                    keepalive: true
+                }).catch(err => console.error('Error saving token:', err));
+
+                // Turant UPI app khol do
+                window.location.href = upiLink;
+                return;
+            }
+
+            // 'Pay Later' ke liye normal flow
             try {
                 const response = await fetch('/api/tokens/generate', {
                     method: 'POST',
@@ -114,7 +134,6 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    // Hide form and display success box
                     document.getElementById('tokenForm').classList.add('hidden');
                     document.getElementById('displayTokenNumber').innerText = `#${result.data.tokenNumber}`;
                     document.getElementById('displayDetails').innerHTML = `
@@ -124,18 +143,6 @@
                         <p><b>Payment Mode:</b> <span class="text-orange-600 font-bold">${result.data.paymentType}</span></p>
                     `;
                     document.getElementById('resultBox').classList.remove('hidden');
-
-                    if (paymentType === 'Pay Now') {
-                        // Using your real UPI ID from WhatsApp screenshot
-                        const upiID = "9643280877@ptsbi"; 
-                        const amount = "500"; // Testing charges amount
-                        const upiLink = `upi://pay?pa=${upiID}&pn=Jai%20Shree%20Ram%20CNG&am=${amount}&cu=INR`;
-                        
-                        // Trigger UPI app redirection on mobile/supported devices
-                        setTimeout(() => {
-                            window.location.href = upiLink;
-                        }, 1000);
-                    }
                 } else {
                     alert(result.message || 'Failed to generate token.');
                 }
