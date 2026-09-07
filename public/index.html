@@ -126,12 +126,12 @@
                     document.getElementById('resultBox').classList.remove('hidden');
 
                     if (paymentType === 'Pay Now') {
-                        // UPI payment intent link (Yahan apni company ki UPI ID daal lena aage chalkar)
-                        const upiID = "merchant@upi"; 
-                        const amount = "500"; // Testing charges test amount
+                        // Using your real UPI ID from WhatsApp screenshot
+                        const upiID = "9643280877@ptsbi"; 
+                        const amount = "500"; // Testing charges amount
                         const upiLink = `upi://pay?pa=${upiID}&pn=Jai%20Shree%20Ram%20CNG&am=${amount}&cu=INR`;
                         
-                        // Try triggering UPI app on mobile
+                        // Trigger UPI app redirection on mobile/supported devices
                         setTimeout(() => {
                             window.location.href = upiLink;
                         }, 1000);
