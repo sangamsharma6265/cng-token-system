@@ -85,7 +85,7 @@
 
                 <!-- QR Code & Payment Section (Only for Pay Now) -->
                 <div id="paymentSection" class="hidden space-y-2 pt-2 border-t border-orange-200">
-                    <p class="text-xs font-bold text-gray-700">Scan QR Code to Pay ₹500</p>
+                    <p class="text-xs font-bold text-gray-700">Scan QR Code to Pay</p>
                     <div class="bg-white p-2 inline-block rounded-xl shadow border border-orange-200">
                         <img id="qrCodeImg" src="" alt="UPI QR Code" class="w-36 h-36 mx-auto rounded">
                     </div>
@@ -142,15 +142,14 @@
                     const paymentSection = document.getElementById('paymentSection');
                     if (paymentType === 'Pay Now') {
                         const upiID = "9643280877@ptsbi"; 
-                        const amount = "500"; 
-                        const upiLink = `upi://pay?pa=${upiID}&pn=Jai%20Shree%20Ram%20CNG&am=${amount}&cu=INR`;
+                        const upiLink = `upi://pay?pa=${upiID}&pn=Jai%20Shree%20Ram%20CNG&cu=INR`;
                         
-                        // Generate dynamic QR code image based on UPI link
+                        // Generate dynamic QR code image based on UPI link (without fixed amount)
                         const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiLink)}`;
                         document.getElementById('qrCodeImg').src = qrApiUrl;
                         document.getElementById('upiDirectBtn').setAttribute('href', upiLink);
                         
-                        paymentSection.classList.remove('hidden');
+                        paymentSection.classList.remove('heading') || paymentSection.classList.remove('hidden');
                     } else {
                         paymentSection.classList.add('hidden');
                     }
