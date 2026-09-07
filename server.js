@@ -90,6 +90,20 @@ app.post('/api/tokens/generate', async (req, res) => {
     }
 });
 
+// 2. Get all tokens for Admin Panel
+app.get('/api/tokens', async (req, res) => {
+    try {
+        const tokens = await Token.find().sort({ createdAt: -1 }); // Latest tokens first
+        res.status(200).json({
+            success: true,
+            data: tokens
+        });
+    } catch (error) {
+        console.error('Error fetching tokens:', error);
+        res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+    }
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`🚀 Server is running on port ${PORT}`);
