@@ -90,10 +90,17 @@ app.post('/api/tokens/generate', async (req, res) => {
     }
 });
 
-// 2. Get all tokens for Admin Panel
+// 2. Get all tokens for Admin Panel (with optional date filter)
 app.get('/api/tokens', async (req, res) => {
     try {
-        const tokens = await Token.find().sort({ createdAt: -1 }); // Latest tokens first
+        const { date } = req.query;
+        let query = {};
+        
+        if (date) {
+            query.bookingDate = date;
+        }
+
+        const tokens = await Token.find(query).sort({ createdAt: -1 }); // Latest tokens first
         res.status(200).json({
             success: true,
             data: tokens
