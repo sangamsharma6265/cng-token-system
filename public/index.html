@@ -144,12 +144,11 @@
                         const upiID = "9643280877@ptsbi"; 
                         const upiLink = `upi://pay?pa=${upiID}&pn=Jai%20Shree%20Ram%20CNG&cu=INR`;
                         
-                        // Generate dynamic QR code image based on UPI link (without fixed amount)
                         const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiLink)}`;
                         document.getElementById('qrCodeImg').src = qrApiUrl;
                         document.getElementById('upiDirectBtn').setAttribute('href', upiLink);
                         
-                        paymentSection.classList.remove('heading') || paymentSection.classList.remove('hidden');
+                        paymentSection.classList.remove('hidden');
                     } else {
                         paymentSection.classList.add('hidden');
                     }
