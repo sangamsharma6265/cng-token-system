@@ -1,318 +1,161 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jai Shree Ram CNG Cylinder Testing Company</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        @media print {
-            body * { visibility: hidden; }
-            #printableSlip, #printableSlip * { visibility: visible; }
-            #printableSlip { position: absolute; left: 0; top: 0; width: 100%; border: none; box-shadow: none; }
-        }
-    </style>
-</head>
-<body class="bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100 min-h-screen flex flex-col items-center justify-center p-4">
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const path = require('path');
+require('dotenv').config();
 
-    <!-- Main Container Card -->
-    <div class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-orange-200">
+const Token = require('./models/Token');
+const AdminConfig = require('./models/AdminConfig');
+
+const app = express();
+
+// Middlewares
+app.use(express.json());
+app.use(cors());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Environment Variables
+const PORT = process.env.PORT || 5000;
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/cng-token-system';
+
+// Connect to MongoDB Database
+mongoose.connect(MONGO_URI)
+    .then(() => console.log('✅ MongoDB Connected Successfully'))
+    .catch((err) => console.error('❌ Database Connection Error:', err));
+
+// Route to serve Admin Panel
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+// 1. Generate Token API Route (Supports custom starting token number)
+app.post('/api/tokens/generate', async (req, res) => {
+    try {
+        const { customerName, vehicleNumber, mobileNumber, bookingDate, paymentType } = req.body;
+
+        if (!customerName || !vehicleNumber || !mobileNumber || !bookingDate || !paymentType) {
+            return res.status(400).json({ success: false, message: 'All fields are required!' });
+        }
+
+        let config = await AdminConfig.findOne({ date: bookingDate });
+        if (config && config.isBookingClosed) {
+            return res.status(400).json({ success: false, message: 'Bookings for this date are closed by admin!' });
+        }
+
+        const maxLimit = config && config.maxLimit ? config.maxLimit : 100;
+        const tokenCount = await Token.countDocuments({ bookingDate });
+
+        if (tokenCount >= maxLimit) {
+            return res.status(400).json({ success: false, message: 'Daily token limit reached for this date!' });
+        }
+
+        let startNum = (config && config.startNumber) ? config.startNumber : 1;
+        const lastToken = await Token.findOne({ bookingDate }).sort({ tokenNumber: -1 });
         
-        <!-- Header Banner -->
-        <div class="bg-gradient-to-r from-orange-600 to-amber-600 p-6 text-center text-white relative">
-            <button onclick="openAdminLogin()" class="absolute top-3 right-3 text-xs bg-white/20 hover:bg-white/30 px-2.5 py-1 rounded-lg backdrop-blur-sm transition">
-                <i class="fa-solid fa-lock mr-1"></i> Admin
-            </button>
-            <div class="w-16 h-16 bg-white/10 mx-auto rounded-full flex items-center justify-center mb-3 backdrop-blur-sm">
-                <i class="fa-solid fa-gas-pump text-3xl"></i>
-            </div>
-            <h1 class="text-xl font-bold tracking-wide">Jai Shree Ram CNG</h1>
-            <p class="text-xs text-orange-100 uppercase tracking-wider mt-1">Cylinder Hydro Testing Company</p>
-        </div>
+        let nextTokenNumber = startNum;
+        if (lastToken && lastToken.tokenNumber >= startNum) {
+            nextTokenNumber = lastToken.tokenNumber + 1;
+        }
 
-        <!-- Form Body -->
-        <div class="p-6 space-y-4">
-            <form id="tokenForm" class="space-y-4" onsubmit="event.preventDefault();">
-                <div>
-                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Customer Name</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fa-solid fa-user"></i></span>
-                        <input type="text" id="customerName" placeholder="Enter full name" required class="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition">
-                    </div>
-                </div>
+        const paymentStatus = (paymentType === 'Pay Now') ? 'Completed' : 'Skipped/Manual';
 
-                <div>
-                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Vehicle Number</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fa-solid fa-car"></i></span>
-                        <input type="text" id="vehicleNumber" placeholder="e.g. DL01AB1234" required class="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm uppercase focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition">
-                    </div>
-                </div>
+        const newToken = new Token({
+            tokenNumber: nextTokenNumber,
+            bookingDate,
+            customerName,
+            vehicleNumber,
+            mobileNumber,
+            paymentType,
+            paymentStatus
+        });
 
-                <div>
-                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Mobile Number</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fa-solid fa-phone"></i></span>
-                        <input type="tel" id="mobileNumber" pattern="[0-9]{10}" placeholder="10-digit mobile number" required class="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition">
-                    </div>
-                </div>
+        await newToken.save();
 
-                <div>
-                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Booking Date</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fa-solid fa-calendar"></i></span>
-                        <input type="date" id="bookingDate" required class="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition">
-                    </div>
-                </div>
+        res.status(201).json({
+            success: true,
+            message: 'Token generated successfully!',
+            data: {
+                tokenNumber: nextTokenNumber,
+                bookingDate,
+                customerName,
+                vehicleNumber,
+                paymentType,
+                paymentStatus
+            }
+        });
 
-                <!-- Action Buttons -->
-                <div class="grid grid-cols-2 gap-3 pt-2">
-                    <button type="button" onclick="submitToken('Pay Now')" class="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-qrcode"></i> Pay Now
-                    </button>
-                    <button type="button" onclick="submitToken('Pay Later')" class="bg-amber-600 hover:bg-amber-700 text-white py-3 px-4 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-clock"></i> Pay Later
-                    </button>
-                </div>
-            </form>
+    } catch (error) {
+        console.error('Detailed Error while generating token:', error);
+        res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+    }
+});
 
-            <!-- Success Result & Printable Slip Box -->
-            <div id="resultBox" class="hidden mt-4 space-y-3">
-                <div id="printableSlip" class="p-5 bg-orange-50 border-2 border-dashed border-orange-400 rounded-xl text-center space-y-3">
-                    <div class="text-emerald-600 font-bold text-sm flex items-center justify-center gap-1">
-                        <i class="fa-solid fa-circle-check text-lg"></i> Token Generated Successfully!
-                    </div>
-                    
-                    <div class="bg-white py-2 px-4 rounded-lg shadow-inner inline-block border border-orange-200">
-                        <span class="text-xs text-gray-500 block uppercase font-semibold">Your Token Number</span>
-                        <span class="text-3xl font-black text-orange-600 tracking-wider" id="displayTokenNumber">#00</span>
-                    </div>
-
-                    <div class="text-xs text-gray-600 space-y-1 text-left bg-white p-3 rounded-lg border border-orange-100" id="displayDetails">
-                        <!-- Dynamic details here -->
-                    </div>
-
-                    <!-- QR Code & Payment Section (Only for Pay Now) -->
-                    <div id="paymentSection" class="hidden space-y-2 pt-2 border-t border-orange-200">
-                        <p class="text-xs font-bold text-gray-700">Scan QR Code to Pay</p>
-                        <div class="bg-white p-2 inline-block rounded-xl shadow border border-orange-200">
-                            <img id="qrCodeImg" src="" alt="UPI QR Code" class="w-36 h-36 mx-auto rounded">
-                        </div>
-                        <div>
-                            <a id="upiDirectBtn" href="#" class="inline-block w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg font-bold text-xs shadow transition">
-                                <i class="fa-solid fa-wallet mr-1"></i> Open PhonePe / GPay App
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Print & New Token Buttons -->
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-lg font-bold text-xs shadow transition flex items-center justify-center gap-1">
-                        <i class="fa-solid fa-print"></i> Print Slip
-                    </button>
-                    <button onclick="resetForm()" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-3 rounded-lg font-bold text-xs shadow transition flex items-center justify-center gap-1">
-                        <i class="fa-solid fa-plus"></i> New Token
-                    </button>
-                </div>
-            </div>
-        </div>
+// 2. Get all tokens for Admin Panel
+app.get('/api/tokens', async (req, res) => {
+    try {
+        const { date } = req.query;
+        let query = {};
         
-        <div class="bg-gray-50 px-6 py-3 border-t border-gray-100 text-center text-xs text-gray-400">
-            © 2026 Jai Shree Ram CNG Testing. All Rights Reserved.
-        </div>
-    </div>
-
-    <!-- Admin Modal -->
-    <div id="adminModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center border-b pb-3">
-                <h3 class="font-bold text-gray-800 text-lg"><i class="fa-solid fa-user-shield text-orange-600 mr-2"></i>Admin Dashboard</h3>
-                <button onclick="closeAdminModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg">&times;</button>
-            </div>
-
-            <!-- Login View -->
-            <div id="adminLoginView" class="space-y-3">
-                <p class="text-xs text-gray-500">Enter admin password to manage tokens and starting number.</p>
-                <input type="password" id="adminPass" placeholder="Enter password (default: admin123)" class="w-full p-2.5 border rounded-lg text-sm">
-                <button onclick="verifyAdmin()" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 rounded-lg font-bold text-sm shadow">Login</button>
-            </div>
-
-            <!-- Dashboard Control View -->
-            <div id="adminDashboardView" class="hidden space-y-4">
-                <div class="bg-orange-50 p-3 rounded-xl border border-orange-200 space-y-2">
-                    <label class="block text-xs font-bold text-gray-700 uppercase">Set Starting Token Number</label>
-                    <div class="flex gap-2">
-                        <input type="number" id="startTokenInput" placeholder="e.g. 101" class="w-full p-2 border rounded-lg text-sm bg-white">
-                        <button onclick="updateStartToken()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow">Save</button>
-                    </div>
-                </div>
-
-                <div>
-                    <h4 class="text-xs font-bold text-gray-600 uppercase mb-2">All Generated Tokens</h4>
-                    <div id="adminTokenList" class="space-y-2 max-h-60 overflow-y-auto pr-1">
-                        <!-- Dynamic Token list with delete option -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        document.getElementById('bookingDate').value = new Date().toISOString().split('T')[0];
-
-        async function submitToken(paymentType) {
-            const customerName = document.getElementById('customerName').value.trim();
-            const vehicleNumber = document.getElementById('vehicleNumber').value.trim();
-            const mobileNumber = document.getElementById('mobileNumber').value.trim();
-            const bookingDate = document.getElementById('bookingDate').value;
-
-            if (!customerName || !vehicleNumber || !mobileNumber || !bookingDate) {
-                alert('Please fill in all required fields!');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/tokens/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ customerName, vehicleNumber, mobileNumber, bookingDate, paymentType })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    document.getElementById('tokenForm').classList.add('hidden');
-                    document.getElementById('displayTokenNumber').innerText = `#${result.data.tokenNumber}`;
-                    document.getElementById('displayDetails').innerHTML = `
-                        <p><b>Name:</b> ${result.data.customerName}</p>
-                        <p><b>Vehicle:</b> ${result.data.vehicleNumber}</p>
-                        <p><b>Mobile:</b> ${mobileNumber}</p>
-                        <p><b>Date:</b> ${result.data.bookingDate}</p>
-                        <p><b>Payment Mode:</b> <span class="text-orange-600 font-bold">${result.data.paymentType}</span></p>
-                    `;
-
-                    const paymentSection = document.getElementById('paymentSection');
-                    if (paymentType === 'Pay Now') {
-                        const upiID = "9643280877@ptsbi"; 
-                        const upiLink = `upi://pay?pa=${upiID}&pn=Jai%20Shree%20Ram%20CNG&cu=INR`;
-                        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiLink)}`;
-                        document.getElementById('qrCodeImg').src = qrApiUrl;
-                        document.getElementById('upiDirectBtn').setAttribute('href', upiLink);
-                        paymentSection.classList.remove('hidden');
-                    } else {
-                        paymentSection.classList.add('hidden');
-                    }
-
-                    document.getElementById('resultBox').classList.remove('hidden');
-                } else {
-                    alert(result.message || 'Failed to generate token.');
-                }
-            } catch (err) {
-                console.error('Error:', err);
-                alert('Server connection error.');
-            }
+        if (date) {
+            query.bookingDate = date;
         }
 
-        function resetForm() {
-            document.getElementById('tokenForm').reset();
-            document.getElementById('bookingDate').value = new Date().toISOString().split('T')[0];
-            document.getElementById('resultBox').classList.add('hidden');
-            document.getElementById('tokenForm').classList.remove('hidden');
+        const tokens = await Token.find(query).sort({ createdAt: -1 });
+        res.status(200).json({
+            success: true,
+            tokens: tokens,
+            data: tokens
+        });
+    } catch (error) {
+        console.error('Error fetching tokens:', error);
+        res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+    }
+});
+
+// 3. Delete Token API (Admin Power)
+app.delete('/api/tokens/:id', async (req, res) => {
+    try {
+        const deletedToken = await Token.findByIdAndDelete(req.params.id);
+        if (!deletedToken) {
+            return res.status(404).json({ success: false, message: 'Token not found' });
+        }
+        res.status(200).json({ success: true, message: 'Token deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting token:', error);
+        res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+    }
+});
+
+// 4. Set Starting Token Number API (Admin Power)
+app.post('/api/tokens/start-number', async (req, res) => {
+    try {
+        const { startNumber } = req.body;
+        if (!startNumber || isNaN(startNumber)) {
+            return res.status(400).json({ success: false, message: 'Valid start number is required' });
         }
 
-        function openAdminLogin() {
-            document.getElementById('adminModal').classList.remove('hidden');
-            document.getElementById('adminLoginView').classList.remove('hidden');
-            document.getElementById('adminDashboardView').classList.add('hidden');
-            document.getElementById('adminPass').value = '';
+        const today = new Date().toISOString().split('T')[0];
+
+        let config = await AdminConfig.findOne({ date: today });
+        if (config) {
+            config.startNumber = parseInt(startNumber);
+            await config.save();
+        } else {
+            config = new AdminConfig({
+                date: today,
+                startNumber: parseInt(startNumber)
+            });
+            await config.save();
         }
 
-        function closeAdminModal() {
-            document.getElementById('adminModal').classList.add('hidden');
-        }
+        res.status(200).json({ success: true, message: 'Starting token number updated successfully' });
+    } catch (error) {
+        console.error('Error updating start number:', error);
+        res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+    }
+});
 
-        async function verifyAdmin() {
-            const pass = document.getElementById('adminPass').value;
-            if (pass === 'admin123') {
-                document.getElementById('adminLoginView').classList.add('hidden');
-                document.getElementById('adminDashboardView').classList.remove('hidden');
-                loadAdminData();
-            } else {
-                alert('Wrong Admin Password!');
-            }
-        }
-
-        async function loadAdminData() {
-            try {
-                const today = document.getElementById('bookingDate').value || new Date().toISOString().split('T')[0];
-                const res = await fetch(`/api/tokens?date=${today}`);
-                const result = await res.json();
-                
-                const tokensList = result.tokens || result.data || [];
-                const listContainer = document.getElementById('adminTokenList');
-                listContainer.innerHTML = '';
-                
-                if (tokensList.length === 0) {
-                    listContainer.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">No tokens generated for today.</p>';
-                    return;
-                }
-                
-                tokensList.forEach(t => {
-                    listContainer.innerHTML += `
-                        <div class="flex items-center justify-between p-2.5 bg-gray-50 border rounded-lg text-xs">
-                            <div>
-                                <span class="font-bold text-orange-600">#${t.tokenNumber}</span> - ${t.customerName} (${t.vehicleNumber})
-                            </div>
-                            <button onclick="deleteToken('${t._id}')" class="bg-red-500 hover:bg-red-600 text-white px-2.5 py-1 rounded font-bold transition">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </div>
-                    `;
-                });
-            } catch (err) {
-                console.error('Error loading tokens:', err);
-                alert('Error loading admin tokens');
-            }
-        }
-
-        async function deleteToken(id) {
-            if (confirm('Are you sure you want to delete this token?')) {
-                try {
-                    const res = await fetch(`/api/tokens/${id}`, { method: 'DELETE' });
-                    const result = await res.json();
-                    if (result.success) {
-                        loadAdminData();
-                    } else {
-                        alert('Failed to delete token');
-                    }
-                } catch (err) {
-                    console.error('Error:', err);
-                }
-            }
-        }
-
-        async function updateStartToken() {
-            const startNum = document.getElementById('startTokenInput').value;
-            if (!startNum) return alert('Enter a valid starting number');
-            try {
-                const res = await fetch('/api/tokens/start-number', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ startNumber: parseInt(startNum) })
-                });
-                const result = await res.json();
-                if (result.success) {
-                    alert('Starting token number updated successfully!');
-                } else {
-                    alert('Failed to update');
-                }
-            } catch (err) {
-                console.error('Error:', err);
-            }
-        }
-    </script>
-</body>
-</html>
+// Start Server
+app.listen(PORT, () => {
+    console.log(`🚀 Server is running on port ${PORT}`);
+});
