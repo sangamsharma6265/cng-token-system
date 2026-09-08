@@ -204,8 +204,12 @@
                     const paymentSection = document.getElementById('paymentSection');
                     if (paymentType === 'Pay Now') {
                         const upiID = "9643280877@ptsbi"; 
-                        const upiLink = `upi://pay?pa=${upiID}&pn=Jai%20Shree%20Ram%20CNG&cu=INR`;
+                        const payeeName = "Jai Shree Ram CNG";
+                        
+                        // Updated robust URI encoding
+                        const upiLink = `upi://pay?pa=${encodeURIComponent(upiID)}&pn=${encodeURIComponent(payeeName)}&cu=INR`;
                         const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiLink)}`;
+                        
                         document.getElementById('qrCodeImg').src = qrApiUrl;
                         document.getElementById('upiDirectBtn').setAttribute('href', upiLink);
                         paymentSection.classList.remove('hidden');
