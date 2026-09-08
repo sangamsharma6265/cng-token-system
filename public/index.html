@@ -135,19 +135,26 @@
 
             <!-- Login View -->
             <div id="adminLoginView" class="space-y-3">
-                <p class="text-xs text-gray-500">Enter admin password to manage tokens and starting number.</p>
-                <input type="password" id="adminPass" placeholder="Enter password (default: admin123)" class="w-full p-2.5 border rounded-lg text-sm">
+                <p class="text-xs text-gray-500">Enter admin password to manage tokens and limits.</p>
+                <input type="password" id="adminPass" placeholder="Enter password" class="w-full p-2.5 border rounded-lg text-sm">
                 <button onclick="verifyAdmin()" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 rounded-lg font-bold text-sm shadow">Login</button>
             </div>
 
             <!-- Dashboard Control View -->
             <div id="adminDashboardView" class="hidden space-y-4">
-                <div class="bg-orange-50 p-3 rounded-xl border border-orange-200 space-y-2">
-                    <label class="block text-xs font-bold text-gray-700 uppercase">Set Starting Token Number</label>
-                    <div class="flex gap-2">
-                        <input type="number" id="startTokenInput" placeholder="e.g. 101" class="w-full p-2 border rounded-lg text-sm bg-white">
-                        <button onclick="updateStartToken()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow">Save</button>
+                <div class="bg-orange-50 p-3 rounded-xl border border-orange-200 space-y-3">
+                    <h4 class="text-xs font-bold text-orange-800 uppercase">Token Limits & Starting Number</h4>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Start Token No.</label>
+                            <input type="number" id="startTokenInput" placeholder="e.g. 1" class="w-full p-2 border rounded-lg text-sm bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Ending Limit (Max)</label>
+                            <input type="number" id="maxLimitInput" placeholder="e.g. 50" class="w-full p-2 border rounded-lg text-sm bg-white">
+                        </div>
                     </div>
+                    <button onclick="updateConfig()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg text-xs font-bold shadow">Save Settings</button>
                 </div>
 
                 <div>
@@ -189,7 +196,7 @@
                     document.getElementById('displayDetails').innerHTML = `
                         <p><b>Name:</b> ${result.data.customerName}</p>
                         <p><b>Vehicle:</b> ${result.data.vehicleNumber}</p>
-                        <p><b>Mobile:</b> ${result.data.mobileNumber}</p>
+                        <p><b>Mobile:</b> ${mobileNumber}</p>
                         <p><b>Date:</b> ${result.data.bookingDate}</p>
                         <p><b>Payment Mode:</b> <span class="text-orange-600 font-bold">${result.data.paymentType}</span></p>
                     `;
@@ -236,7 +243,7 @@
 
         async function verifyAdmin() {
             const pass = document.getElementById('adminPass').value;
-            if (pass === 'admin123') { // Apne hisab se password change kar sakte ho
+            if (pass === 'admin123') { 
                 document.getElementById('adminLoginView').classList.add('hidden');
                 document.getElementById('adminDashboardView').classList.remove('hidden');
                 loadAdminData();
@@ -247,28 +254,36 @@
 
         async function loadAdminData() {
             try {
-                const res = await fetch('/api/tokens');
+                const today = document.getElementById('bookingDate').value || new Date().toISOString().split('T')[0];
+                const res = await fetch(`/api/tokens?date=${today}`);
                 const data = await res.json();
-                if (data.success) {
-                    const listContainer = document.getElementById('adminTokenList');
-                    listContainer.innerHTML = '';
-                    if (data.tokens.length === 0) {
-                        listContainer.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">No tokens generated yet.</p>';
-                        return;
-                    }
-                    data.tokens.forEach(t => {
-                        listContainer.innerHTML += `
-                            <div class="flex items-center justify-between p-2.5 bg-gray-50 border rounded-lg text-xs">
-                                <div>
-                                    <span class="font-bold text-orange-600">#${t.tokenNumber}</span> - ${t.customerName} (${t.vehicleNumber})
-                                </div>
-                                <button onclick="deleteToken('${t._id}')" class="bg-red-500 hover:bg-red-600 text-white px-2.5 py-1 rounded font-bold">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            </div>
-                        `;
-                    });
+                
+                if (data.config) {
+                    document.getElementById('startTokenInput').value = data.config.startNumber || 1;
+                    document.getElementById('maxLimitInput').value = data.config.maxLimit || 100;
                 }
+
+                const listContainer = document.getElementById('adminTokenList');
+                listContainer.innerHTML = '';
+                
+                const tokensList = data.tokens || data.data || [];
+                if (tokensList.length === 0) {
+                    listContainer.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">No tokens generated for today.</p>';
+                    return;
+                }
+                
+                tokensList.forEach(t => {
+                    listContainer.innerHTML += `
+                        <div class="flex items-center justify-between p-2.5 bg-gray-50 border rounded-lg text-xs">
+                            <div>
+                                <span class="font-bold text-orange-600">#${t.tokenNumber}</span> - ${t.customerName} (${t.vehicleNumber})
+                            </div>
+                            <button onclick="deleteToken('${t._id}')" class="bg-red-500 hover:bg-red-600 text-white px-2.5 py-1 rounded font-bold">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                });
             } catch (err) {
                 console.error('Error loading tokens:', err);
             }
@@ -290,18 +305,21 @@
             }
         }
 
-        async function updateStartToken() {
-            const startNum = document.getElementById('startTokenInput').value;
-            if (!startNum) return alert('Enter a valid starting number');
+        async function updateConfig() {
+            const startNumber = document.getElementById('startTokenInput').value;
+            const maxLimit = document.getElementById('maxLimitInput').value;
+
+            if (!startNumber || !maxLimit) return alert('Enter valid start and limit numbers');
+            
             try {
                 const res = await fetch('/api/tokens/start-number', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ startNumber: parseInt(startNum) })
+                    body: JSON.stringify({ startNumber: parseInt(startNumber), maxLimit: parseInt(maxLimit) })
                 });
                 const result = await res.json();
                 if (result.success) {
-                    alert('Starting token number updated successfully!');
+                    alert('Settings updated successfully!');
                 } else {
                     alert('Failed to update');
                 }
